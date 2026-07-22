@@ -446,7 +446,20 @@
       </div>
     </div>
 
-    
+    <!-- PII-LEADS-START (removido na versao publica do cliente) -->
+    <div class="tables" style="grid-template-columns:1fr">
+      <div class="card tbl">
+        <div class="head">
+          <h2>Últimos leads</h2>
+          <span class="fnote">direto da planilha comercial · uso interno</span>
+        </div>
+        <div class="scroll"><table id="tblLeads" aria-label="Últimos leads">
+          <thead><tr><th>Data</th><th>Cliente</th><th class="colTel">Telefone</th><th>Unidade</th><th>Capacitação / curso</th><th>Origem</th><th>Qualif.</th><th>Fechou</th><th>Atendente</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </div>
+    <!-- PII-LEADS-END -->
   </section>
 
   <p class="foot" id="foot"></p>
@@ -1022,16 +1035,19 @@
 
     /* ultimos leads */
     (function(){
-      var _tl = $("tblLeads"); if (!_tl) return;   // versao publica nao tem essa tabela
+      var _tl = $("tblLeads"); if (!_tl) return;
       var tb = _tl.querySelector("tbody"); tb.textContent = "";
+      /* coluna Telefone some sozinha quando os dados nao trazem 'tel' (versao pública) */
+      var temTel = (D.leads && D.leads.length) ? ("tel" in D.leads[0]) : true;
+      var thTel = document.querySelector(".colTel"); if (thTel) thTel.style.display = temTel ? "" : "none";
       var ls = lp.slice().sort(function(a,b){ return a.d < b.d ? 1 : -1; }).slice(0, 12);
       if (!ls.length){ var tr0 = document.createElement("tr");
-        var c0 = td("Sem leads no período.", "name"); c0.colSpan = 9; tr0.appendChild(c0); tb.appendChild(tr0); return; }
+        var c0 = td("Sem leads no período.", "name"); c0.colSpan = temTel ? 9 : 8; tr0.appendChild(c0); tb.appendChild(tr0); return; }
       ls.forEach(function(l){
         var tr = document.createElement("tr");
         tr.appendChild(td(dmy(l.d)));
         tr.appendChild(td(l.nome || "—", "name"));
-        tr.appendChild(td(l.tel || "—"));
+        if (temTel) tr.appendChild(td(l.tel || "—"));
         tr.appendChild(td(l.unid || "—"));
         tr.appendChild(td((l.cap || "—") + (l.curso ? " · " + l.curso : ""), "name"));
         var cO = document.createElement("td");

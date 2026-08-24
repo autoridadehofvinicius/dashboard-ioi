@@ -948,10 +948,14 @@
     $("gKw").textContent = inteiro(kws.length);
     $("gAdd").textContent = inteiro(addTot);
 
+    var ultima = "";
+    (D.google_termos || []).forEach(function(r){ if (r.d && r.d > ultima) ultima = r.d; });
+
     var tb = $("tblTermos").querySelector("tbody"); tb.textContent = "";
     if (!termos.length){
       var tr0 = document.createElement("tr");
-      var c0 = td("Nenhuma busca registrada no período.", "name"); c0.colSpan = 8;
+      var c0 = td(ultima ? "Nenhuma busca no período — a campanha está sem veicular."
+                        : "Nenhuma busca registrada.", "name"); c0.colSpan = 8;
       tr0.appendChild(c0); tb.appendChild(tr0);
     } else {
       termos.slice(0, 80).forEach(function(a){
@@ -974,8 +978,17 @@
         tb.appendChild(tr);
       });
     }
-    $("gNota").textContent = "o que a pessoa digitou no Google · " +
-      termos.length + " termos no período" + (termos.length > 80 ? " · mostrando os 80 maiores" : "");
+    /* Periodo vazio nao quer dizer que nunca houve busca: se a campanha
+       parou, e util dizer ate quando ela entregou em vez de mostrar so
+       "nenhuma busca". */
+    if (!termos.length && ultima){
+      var pd = ultima.split("-");
+      $("gNota").textContent = "sem buscas no período selecionado · a campanha não veicula desde " +
+        pd[2] + "/" + pd[1];
+    } else {
+      $("gNota").textContent = "o que a pessoa digitou no Google · " + termos.length +
+        " termos no período" + (termos.length > 80 ? " · mostrando os 80 maiores" : "");
+    }
 
     var tk = $("tblKw").querySelector("tbody"); tk.textContent = "";
     if (!kws.length){

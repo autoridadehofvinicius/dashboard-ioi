@@ -240,6 +240,7 @@
       <button role="tab" aria-selected="true" data-v="geral">Visão geral</button>
       <button role="tab" aria-selected="false" data-v="criativos">Criativos</button>
       <button role="tab" aria-selected="false" data-v="leads">Leads</button>
+      <button role="tab" aria-selected="false" data-v="google">Google · buscas</button>
     </div>
   </div>
 </header>
@@ -319,6 +320,52 @@
         <div class="head"><h2><span class="plat" style="background:var(--google)"></span>Google Ads · por campanha</h2></div>
         <div class="scroll"><table id="tblGoogle" aria-label="Campanhas Google Ads">
           <thead><tr><th>Campanha</th><th>Invest.</th><th>Cliques</th><th>Conv.</th><th>CPL</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== GOOGLE · BUSCAS ===== -->
+  <section class="view" id="view-google">
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+      <div class="card kpi"><div class="lab">Termos pesquisados</div>
+        <div class="val" id="gTermos">—</div>
+        <div class="sub" id="gTermosSub">buscas distintas no período</div></div>
+      <div class="card kpi"><div class="lab">Cliques por busca</div>
+        <div class="val" id="gCl">—</div>
+        <div class="sub" id="gClSub"></div></div>
+      <div class="card kpi"><div class="lab">Palavras-chave ativas</div>
+        <div class="val" id="gKw">—</div>
+        <div class="sub" id="gKwSub">no ar agora</div></div>
+      <div class="card kpi"><div class="lab">Já usadas como palavra</div>
+        <div class="val" id="gAdd">—</div>
+        <div class="sub">termos que viraram palavra-chave</div></div>
+    </div>
+
+    <div class="tables" style="grid-template-columns:1fr">
+      <div class="card tbl">
+        <div class="head">
+          <h2><span class="plat" style="background:var(--google)"></span>Termos de busca reais</h2>
+          <span class="fnote" id="gNota">o que a pessoa digitou no Google antes de ver o anúncio</span>
+        </div>
+        <div class="scroll"><table id="tblTermos" aria-label="Termos de busca reais">
+          <thead><tr><th>Termo pesquisado</th><th>Campanha · grupo</th><th>Impr.</th>
+            <th>Cliques</th><th>CTR</th><th>Invest.</th><th>Conv.</th><th>Custo/clique</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <div class="tables" style="grid-template-columns:1fr">
+      <div class="card tbl">
+        <div class="head">
+          <h2><span class="plat" style="background:var(--google)"></span>Palavras-chave que estamos usando</h2>
+          <span class="fnote" id="gNotaKw"></span>
+        </div>
+        <div class="scroll"><table id="tblKw" aria-label="Palavras-chave">
+          <thead><tr><th>Palavra-chave</th><th>Correspondência</th><th>Campanha · grupo</th>
+            <th>Impr.</th><th>Cliques</th><th>CTR</th><th>Invest.</th><th>Conv.</th></tr></thead>
           <tbody></tbody>
         </table></div>
       </div>
@@ -863,6 +910,103 @@
   }
 
   /* ---------- render ---------- */
+  /* Soma as linhas do periodo por chave. Linha com d vazio e palavra ativa
+     que ainda nao entregou — entra sempre, senao some da tabela e parece
+     que nao existe. */
+  function somaPor(rows, de, ate, chave){
+    var m = {};
+    (rows || []).forEach(function(r){
+      if (r.d && (r.d < de || r.d > ate)) return;
+      var k = chave(r);
+      var a = m[k] || (m[k] = {k: k, im: 0, cl: 0, sp: 0, cv: 0, ref: r});
+      a.im += r.im || 0; a.cl += r.cl || 0; a.sp += r.sp || 0; a.cv += r.cv || 0;
+    });
+    return Object.keys(m).map(function(k){
+      var a = m[k];
+      a.ctr = a.im ? (a.cl / a.im) * 100 : 0;
+      a.cpc = a.cl ? a.sp / a.cl : 0;
+      return a;
+    }).sort(function(x, y){ return (y.sp - x.sp) || (y.im - x.im) || x.k.localeCompare(y.k); });
+  }
+
+  function renderGoogleBuscas(D, j){
+    var termos = somaPor(D.google_termos, j.de, j.ate, function(r){ return r.t; });
+    var kws = somaPor(D.google_kw, j.de, j.ate,
+                      function(r){ return r.c + "|" + r.ag + "|" + r.kw + "|" + r.mt; });
+
+    var clTot = 0, addTot = 0;
+    termos.forEach(function(a){
+      clTot += a.cl;
+      if (a.ref.st === "ADDED") addTot++;
+    });
+
+    $("gTermos").textContent = inteiro(termos.length);
+    $("gCl").textContent = inteiro(clTot);
+    $("gClSub").textContent = termos.length
+      ? ("de " + inteiro(termos.reduce(function(t, a){ return t + a.im; }, 0)) + " aparições")
+      : "";
+    $("gKw").textContent = inteiro(kws.length);
+    $("gAdd").textContent = inteiro(addTot);
+
+    var tb = $("tblTermos").querySelector("tbody"); tb.textContent = "";
+    if (!termos.length){
+      var tr0 = document.createElement("tr");
+      var c0 = td("Nenhuma busca registrada no período.", "name"); c0.colSpan = 8;
+      tr0.appendChild(c0); tb.appendChild(tr0);
+    } else {
+      termos.slice(0, 80).forEach(function(a){
+        var tr = document.createElement("tr");
+        var nome = td(a.ref.t, "name"); nome.title = a.ref.t;
+        if (a.ref.st === "ADDED"){
+          var ch = document.createElement("span"); ch.className = "chip";
+          ch.textContent = "já é palavra-chave"; nome.appendChild(ch);
+        }
+        tr.appendChild(nome);
+        var org = td(limpaNome(a.ref.c) + " · " + a.ref.ag, "name");
+        org.title = a.ref.c + " · " + a.ref.ag;
+        tr.appendChild(org);
+        tr.appendChild(td(inteiro(a.im)));
+        tr.appendChild(td(inteiro(a.cl)));
+        tr.appendChild(td(a.ctr.toFixed(2) + "%"));
+        tr.appendChild(td(brl(a.sp)));
+        tr.appendChild(td(inteiro(a.cv)));
+        tr.appendChild(td(a.cl ? brl(a.cpc) : "—"));
+        tb.appendChild(tr);
+      });
+    }
+    $("gNota").textContent = "o que a pessoa digitou no Google · " +
+      termos.length + " termos no período" + (termos.length > 80 ? " · mostrando os 80 maiores" : "");
+
+    var tk = $("tblKw").querySelector("tbody"); tk.textContent = "";
+    if (!kws.length){
+      var tr1 = document.createElement("tr");
+      var c1 = td("Sem palavras-chave ativas.", "name"); c1.colSpan = 8;
+      tr1.appendChild(c1); tk.appendChild(tr1);
+    } else {
+      kws.forEach(function(a){
+        var tr = document.createElement("tr");
+        var nome = td(a.ref.kw, "name"); nome.title = a.ref.kw;
+        if (!a.im){
+          var ch = document.createElement("span"); ch.className = "chip";
+          ch.textContent = "sem entrega"; nome.appendChild(ch);
+        }
+        tr.appendChild(nome);
+        tr.appendChild(td(a.ref.mt));
+        var org = td(limpaNome(a.ref.c) + " · " + a.ref.ag, "name");
+        org.title = a.ref.c + " · " + a.ref.ag;
+        tr.appendChild(org);
+        tr.appendChild(td(inteiro(a.im)));
+        tr.appendChild(td(inteiro(a.cl)));
+        tr.appendChild(td(a.ctr.toFixed(2) + "%"));
+        tr.appendChild(td(brl(a.sp)));
+        tr.appendChild(td(inteiro(a.cv)));
+        tk.appendChild(tr);
+      });
+    }
+    $("gNotaKw").textContent = kws.length + " palavras ativas · " +
+      kws.filter(function(a){ return !a.im; }).length + " ainda sem entrega";
+  }
+
   function render(){
     var D = window.IOI_DATA || {meta: [], meta_ads: [], google: [], thumbs: {}, erros: ["dados.js não encontrado"]};
     var j = janelas();
@@ -1109,6 +1253,9 @@
       "Aba Leads = planilha comercial (Google Sheets), pela data de início de contato; dados de uso interno. " +
       "Números de hoje são parciais e as plataformas podem revisar valores retroativamente. Coleta automática a cada hora. " +
       "Dashboard por Vinicius Augusto de Souza · Gestor de Tráfego.";
+
+    /* --- google · buscas --- */
+    renderGoogleBuscas(D, j);
   }
 
   /* tabs */
@@ -1127,6 +1274,7 @@
   });
   if (location.hash === "#criativos") setView("criativos");
   if (location.hash === "#leads") setView("leads");
+  if (location.hash === "#google") setView("google");
 
   /* filtros */
   document.querySelectorAll("#seg button").forEach(function(b){

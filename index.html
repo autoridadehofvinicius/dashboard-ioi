@@ -136,6 +136,10 @@
   .kpi .delta.down{color:var(--bad)}
   .kpi .delta.flat{color:var(--ink2)}
   .kpi .vs{color:var(--muted);font-weight:400}
+  /* linha de apoio do KPI: o numero que NAO entra na conta de cima, mas que
+     a pessoa precisa ver para nao achar que sumiu */
+  .kpi .apoio{font-size:12px;color:var(--muted);font-weight:500;margin-top:1px}
+  .kpi .apoio b{color:var(--ink2);font-weight:700}
   .kpi.heroCard{background:
       radial-gradient(420px 210px at 90% -40%, rgba(255,214,166,.35), transparent 60%),
       linear-gradient(140deg,var(--hero1),var(--hero2) 62%,var(--hero3) 140%);
@@ -146,6 +150,9 @@
   .kpi.heroCard .delta.up{color:#EAFFDE}
   .kpi.heroCard .delta.down{color:#4A1F00}
   .kpi.heroCard .vs{color:rgba(255,255,255,.6)}
+  /* no card laranja o cinza padrao da linha de apoio fica ilegivel */
+  .kpi.heroCard .apoio{color:rgba(255,255,255,.78)}
+  .kpi.heroCard .apoio b{color:#fff}
   .kpi svg{margin-top:8px;display:block}
 
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
@@ -270,8 +277,9 @@
         <svg id="sparkInv" viewBox="0 0 240 44" height="44" aria-hidden="true"></svg>
       </div>
       <div class="card kpi">
-        <span class="lbl">Leads WhatsApp <span style="color:var(--meta)">· Meta</span></span>
+        <span class="lbl">Leads de curso <span style="color:var(--meta)">· Meta</span></span>
         <div class="meta-line"><span class="val" id="kLd">—</span><span class="delta" id="kLdD"></span></div>
+        <div class="apoio" id="kLdPM"></div>
       </div>
       <div class="card kpi">
         <span class="lbl">Conversões <span style="color:var(--google)">· Google</span></span>
@@ -300,7 +308,8 @@
         <div class="chart-head">
           <h2>Resultados por dia</h2>
           <div class="legend" aria-hidden="true">
-            <span class="k"><span class="sw" style="background:var(--meta)"></span>Leads Meta</span>
+            <span class="k"><span class="sw" style="background:var(--meta)"></span>Leads de curso</span>
+            <span class="k"><span class="sw" style="background:var(--muted)"></span>Paciente modelo</span>
             <span class="k"><span class="sw" style="background:var(--google)"></span>Conv. Google</span>
           </div>
         </div>
@@ -425,8 +434,9 @@
   <section class="view" id="view-leads">
     <div class="kpis">
       <div class="card kpi heroCard">
-        <span class="lbl">Leads recebidos no período</span>
+        <span class="lbl">Leads de curso no período</span>
         <div class="meta-line"><span class="val" id="lTot">—</span><span class="delta flat" id="lTotD"></span></div>
+        <div class="apoio" id="lTotPM"></div>
         <svg id="sparkLeads" viewBox="0 0 240 44" height="44" aria-hidden="true"></svg>
       </div>
       <div class="card kpi">
@@ -438,7 +448,7 @@
         <div class="meta-line"><span class="val" id="lFech">—</span><span class="delta flat" id="lFechP"></span></div>
       </div>
       <div class="card kpi">
-        <span class="lbl">CPL real <span style="color:var(--muted);font-weight:400">· invest ÷ leads da planilha</span></span>
+        <span class="lbl">CPL real <span style="color:var(--muted);font-weight:400">· verba de curso ÷ leads de curso</span></span>
         <div class="meta-line"><span class="val" id="lCpl">—</span></div>
       </div>
     </div>
@@ -538,6 +548,25 @@
     var d = new Date(); d.setDate(d.getDate() - n);
     return d.toISOString().slice(0,10);
   }
+  /* ---------- paciente modelo x curso ----------
+     A campanha de PACIENTE MODELO capta quem quer TRATAMENTO na clinica, nao
+     quem quer FAZER a pos. Sao dois produtos diferentes e o lead custa uma
+     fracao do outro (R$ 7,77 contra R$ 41,57 em setembro). Somados, o custo
+     por lead de curso aparece 36% mais barato do que e' — e e' esse numero
+     que decide verba. Por isso todo lugar que fala "lead" separa os dois.
+
+     A regra e' pelo NOME da campanha. Se um dia renomearem, e' so' manter
+     "paciente modelo" em algum lugar do nome (acento e caixa nao importam). */
+  function ehPacienteModelo(nome){
+    return /paciente\s*modelo/i.test(nome || "");
+  }
+  function soCurso(rows){
+    return (rows || []).filter(function(r){ return !ehPacienteModelo(r.c); });
+  }
+  function soPacienteModelo(rows){
+    return (rows || []).filter(function(r){ return ehPacienteModelo(r.c); });
+  }
+
   function fatia(rows, de, ate){
     return rows.filter(function(r){ return r.d >= de && r.d <= ate; });
   }
@@ -1030,7 +1059,10 @@
     var spMeta = soma(meta, "sp"), spGoo = soma(goo, "sp");
     var inv = spMeta + spGoo;
     var invAnt = soma(metaAnt, "sp") + soma(gooAnt, "sp");
-    var ld = soma(meta, "ld"), ldAnt = soma(metaAnt, "ld");
+    /* o KPI de cima e' SO' curso; paciente modelo vai na linha de apoio */
+    var ld = soma(soCurso(meta), "ld"), ldAnt = soma(soCurso(metaAnt), "ld");
+    var ldPM = soma(soPacienteModelo(meta), "ld");
+    var spPM = soma(soPacienteModelo(meta), "sp");
     var cv = soma(goo, "cv"), cvAnt = soma(gooAnt, "cv");
     var im = soma(meta, "im") + soma(goo, "im");
     var cl = soma(meta, "cl") + soma(goo, "cl");
@@ -1043,6 +1075,9 @@
     setDelta($("kInvD"), inv, invAnt, true);
     $("kLd").textContent = String(ld);
     setDelta($("kLdD"), ld, ldAnt);
+    $("kLdPM").innerHTML = ldPM
+      ? "+ <b>" + ldPM + "</b> paciente modelo · " + brl(spPM / ldPM) + "/lead"
+      : "";
     $("kCv").textContent = num(cv);
     setDelta($("kCvD"), cv, cvAnt);
     $("kCtr").textContent = pctBR(ctr);
@@ -1054,8 +1089,12 @@
       {name: "Google", color: "var(--google)", data: porDia(D.google, "sp", j.de, j.ate)}
     ], brl, brlAxis);
     lineChart($("plotRes"), [
-      {name: "Leads Meta", color: "var(--meta)", data: porDia(D.meta, "ld", j.de, j.ate)},
-      {name: "Conv. Google", color: "var(--google)", data: porDia(D.google, "cv", j.de, j.ate)}
+      {name: "Leads de curso", color: "var(--meta)",
+       data: porDia(soCurso(D.meta), "ld", j.de, j.ate)},
+      {name: "Paciente modelo", color: "var(--muted)",
+       data: porDia(soPacienteModelo(D.meta), "ld", j.de, j.ate)},
+      {name: "Conv. Google", color: "var(--google)",
+       data: porDia(D.google, "cv", j.de, j.ate)}
     ], num, function(v){ return String(Math.round(v)); }, true);
     fillMeta(meta);
     fillGoogle(goo);
@@ -1101,18 +1140,33 @@
 
     /* --- leads (planilha) --- */
     var LR = D.leads || [];
-    var lp = fatia(LR, j.de, j.ate), lpAnt = fatia(LR, j.deA, j.ateA);
+    /* Na planilha o paciente nao vem pelo nome da campanha: o comercial marca
+       na area ("PACIENTE") ou na captacao ("Paciente"). Sao os dois campos que
+       eles de fato preenchem — por isso a checagem olha os dois. */
+    function ehLeadPaciente(l){
+      return /paciente/i.test(l.area || "") || /paciente/i.test(l.cap || "");
+    }
+    var lpTodos = fatia(LR, j.de, j.ate);
+    var lp = lpTodos.filter(function(l){ return !ehLeadPaciente(l); });
+    var lpPM = lpTodos.filter(ehLeadPaciente);
+    var lpAnt = fatia(LR, j.deA, j.ateA).filter(function(l){ return !ehLeadPaciente(l); });
     var lTot = lp.length;
     var lQual = lp.filter(function(l){ return l.qual; }).length;
     var lFech = lp.filter(function(l){ return l.fech; }).length;
+    /* o CPL real so' fecha se os dois lados forem da mesma coisa: verba de
+       curso dividida por lead de curso. Misturar e' o que escondia o custo. */
+    var invCurso = inv - spPM;
     $("lTot").textContent = String(lTot);
     setDelta($("lTotD"), lTot, lpAnt.length);
+    $("lTotPM").innerHTML = lpPM.length
+      ? "+ <b>" + lpPM.length + "</b> paciente modelo (fora da conta de curso)" : "";
     $("lQual").textContent = String(lQual);
     $("lQualP").textContent = lTot ? Math.round(lQual / lTot * 100) + "% do total" : "";
     $("lFech").textContent = String(lFech);
     $("lFechP").textContent = lTot ? Math.round(lFech / lTot * 100) + "% de conversão" : "";
-    $("lCpl").textContent = lTot ? brl(inv / lTot) : "—";
-    spark($("sparkLeads"), porDia(LR.map(function(l){ return {d: l.d, n: 1}; }), "n", diasAtras(11), hoje()));
+    $("lCpl").textContent = lTot ? brl(invCurso / lTot) : "—";
+    spark($("sparkLeads"), porDia(LR.filter(function(l){ return !ehLeadPaciente(l); })
+      .map(function(l){ return {d: l.d, n: 1}; }), "n", diasAtras(11), hoje()));
 
     function leadsDia(origem){
       return porDia(lp.filter(function(l){ return l.orig === origem; })
@@ -1168,8 +1222,10 @@
     /* por origem (com CPL real por plataforma) */
     (function(){
       var tb = $("tblOrig").querySelector("tbody"); tb.textContent = "";
+      /* spMeta menos paciente modelo: os leads contados aqui sao so' de curso,
+         entao a verba do outro lado da divisao tem que sair junto */
       var defs = [
-        {k: "Meta", cls: "cMeta", invp: spMeta},
+        {k: "Meta", cls: "cMeta", invp: spMeta - spPM},
         {k: "Google", cls: "cGoogle", invp: spGoo},
         {k: "Outros", cls: "cOut", invp: null}
       ];
@@ -1197,7 +1253,10 @@
       /* coluna Telefone some sozinha quando os dados nao trazem 'tel' (versao pública) */
       var temTel = (D.leads && D.leads.length) ? ("tel" in D.leads[0]) : true;
       var thTel = document.querySelector(".colTel"); if (thTel) thTel.style.display = temTel ? "" : "none";
-      var ls = lp.slice().sort(function(a,b){ return a.d < b.d ? 1 : -1; }).slice(0, 12);
+      /* AQUI entra tudo, curso e paciente: esta lista e' para a equipe ver quem
+         chegou, nao para fechar conta. Esconder o paciente aqui faria o
+         comercial achar que o lead se perdeu. A linha vai marcada. */
+      var ls = lpTodos.slice().sort(function(a,b){ return a.d < b.d ? 1 : -1; }).slice(0, 12);
       if (!ls.length){ var tr0 = document.createElement("tr");
         var c0 = td("Sem leads no período.", "name"); c0.colSpan = temTel ? 9 : 8; tr0.appendChild(c0); tb.appendChild(tr0); return; }
       ls.forEach(function(l){
@@ -1206,7 +1265,14 @@
         tr.appendChild(td(l.nome || "—", "name"));
         if (temTel) tr.appendChild(td(l.tel || "—"));
         tr.appendChild(td(l.unid || "—"));
-        tr.appendChild(td((l.cap || "—") + (l.curso ? " · " + l.curso : ""), "name"));
+        var cC = td((l.cap || "—") + (l.curso ? " · " + l.curso : ""), "name");
+        if (ehLeadPaciente(l)){
+          var chp = document.createElement("span");
+          chp.className = "chip cOut"; chp.style.marginLeft = "6px";
+          chp.textContent = "paciente modelo";
+          cC.appendChild(chp);
+        }
+        tr.appendChild(cC);
         var cO = document.createElement("td");
         var ch = document.createElement("span");
         ch.className = "chip " + (l.orig === "Meta" ? "cMeta" : l.orig === "Google" ? "cGoogle" : "cOut");

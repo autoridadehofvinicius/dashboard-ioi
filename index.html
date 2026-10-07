@@ -153,6 +153,17 @@
   /* no card laranja o cinza padrao da linha de apoio fica ilegivel */
   .kpi.heroCard .apoio{color:rgba(255,255,255,.78)}
   .kpi.heroCard .apoio b{color:#fff}
+  /* quebra Meta x Google dentro do card laranja. O ponto colorido usa a MESMA
+     cor das series do grafico logo abaixo, senao o olho nao liga as duas coisas. */
+  .apoio.split{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
+  .apoio.split span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .apoio.split em{font-style:normal;opacity:.7;font-size:11px}
+  .apoio.split .pt{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
+  .apoio.split .pt.pMeta{background:var(--meta)}
+  .apoio.split .pt.pGoogle{background:var(--google)}
+  /* dentro do herói laranja o azul/laranja das séries somem — usar tons claros */
+  .kpi.heroCard .apoio.split .pt.pMeta{background:#BBD6F2}
+  .kpi.heroCard .apoio.split .pt.pGoogle{background:#FFD9A8}
   .kpi svg{margin-top:8px;display:block}
 
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
@@ -274,6 +285,7 @@
       <div class="card kpi heroCard">
         <span class="lbl">Investimento total</span>
         <div class="meta-line"><span class="val" id="kInv">—</span><span class="delta flat" id="kInvD"></span></div>
+        <div class="apoio split" id="kInvSplit"></div>
         <svg id="sparkInv" viewBox="0 0 240 44" height="44" aria-hidden="true"></svg>
       </div>
       <div class="card kpi">
@@ -532,6 +544,12 @@
   /* ---------- formatadores ---------- */
   function brl(v){
     return "R$ " + v.toLocaleString("pt-BR", {minimumFractionDigits: v < 1000 ? 2 : 0, maximumFractionDigits: v < 1000 ? 2 : 0});
+  }
+  /* Sempre sem centavos. O brl() mostra centavos abaixo de mil, o que fica
+     inconsistente quando dois valores aparecem lado a lado para comparacao
+     ("R$ 1.601" ao lado de "R$ 950,72"). Aqui o que importa e' a proporcao. */
+  function brl0(v){
+    return "R$ " + Math.round(v).toLocaleString("pt-BR");
   }
   function brlAxis(v){
     if (v >= 1000) return "R$" + (v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1}) + "k";
@@ -1073,6 +1091,16 @@
 
     $("kInv").textContent = brl(inv);
     setDelta($("kInvD"), inv, invAnt, true);
+    /* O numero grande continua sendo o total, que e' o que o cliente pergunta
+       primeiro. Mas sozinho ele nao diz onde o dinheiro foi — e as duas
+       plataformas aqui tem papeis diferentes. A quebra vai logo abaixo, com a
+       fatia de cada uma, para a leitura ser imediata sem precisar abrir grafico. */
+    $("kInvSplit").innerHTML = inv
+      ? '<span><i class="pt pMeta"></i>Meta <b>' + brl0(spMeta) + '</b>'
+        + ' <em>' + Math.round(spMeta / inv * 100) + '%</em></span>'
+        + '<span><i class="pt pGoogle"></i>Google <b>' + brl0(spGoo) + '</b>'
+        + ' <em>' + Math.round(spGoo / inv * 100) + '%</em></span>'
+      : "";
     $("kLd").textContent = String(ld);
     setDelta($("kLdD"), ld, ldAnt);
     $("kLdPM").innerHTML = ldPM

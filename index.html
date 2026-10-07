@@ -126,7 +126,8 @@
   .kicker::before{content:"";width:16px;height:2px;border-radius:2px;background:var(--amber)}
 
   /* KPIs */
-  .kpis{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:14px}
+  /* dois cards de plataforma com o mesmo peso, e dois menores ao lado */
+  .kpis{display:grid;grid-template-columns:1.25fr 1.25fr 1fr 1fr;gap:14px}
   .kpi{padding:18px 20px 16px;display:flex;flex-direction:column;gap:5px;min-width:0}
   .kpi .lbl{font-size:12px;font-weight:600;color:var(--ink2)}
   .kpi .val{font-size:27px;font-weight:700;letter-spacing:-.015em;white-space:nowrap;font-family:'Inter',system-ui,sans-serif}
@@ -153,6 +154,21 @@
   /* no card laranja o cinza padrao da linha de apoio fica ilegivel */
   .kpi.heroCard .apoio{color:rgba(255,255,255,.78)}
   .kpi.heroCard .apoio b{color:#fff}
+  /* ---- um card por plataforma ----
+     Cada um usa a cor da PROPRIA plataforma, a mesma das series dos graficos.
+     Antes o unico card colorido era o laranja do total; agora o laranja e' do
+     Google e o Meta ganha o azul dele, senao a cor mentiria. */
+  .kpi.heroCard.heroMeta{background:
+      radial-gradient(420px 210px at 90% -40%, rgba(190,220,255,.26), transparent 60%),
+      linear-gradient(140deg,#1D4E7E,#2F6DA8 62%,#3F82C4 140%)}
+  .kpi.heroCard.heroGoogle{background:
+      radial-gradient(420px 210px at 90% -40%, rgba(255,214,166,.32), transparent 60%),
+      linear-gradient(140deg,var(--hero1),var(--hero2) 62%,var(--hero3) 140%)}
+  .kpi.heroCard.heroMeta .lbl{color:#D6E8FB}
+  .kpi.heroCard .val{font-size:38px}
+  .plat-tag{font-weight:700;letter-spacing:.02em}
+  .kpi.heroCard.heroMeta .delta.down,
+  .kpi.heroCard.heroGoogle .delta.down{color:#2A1200}
   /* quebra Meta x Google dentro do card laranja. O ponto colorido usa a MESMA
      cor das series do grafico logo abaixo, senao o olho nao liga as duas coisas. */
   .apoio.split{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}
@@ -282,20 +298,24 @@
   <!-- ===== VISÃO GERAL ===== -->
   <section class="view on" id="view-geral">
     <div class="kpis">
-      <div class="card kpi heroCard">
-        <span class="lbl">Investimento total</span>
+      <!-- Uma plataforma por card. O gasto e o resultado que ele produziu ficam
+           juntos, que e' o unico jeito de julgar se a divisao da verba esta' certa. -->
+      <div class="card kpi heroCard heroMeta">
+        <span class="lbl">Investimento <span class="plat-tag">Meta</span></span>
+        <div class="meta-line"><span class="val" id="kInvMeta">—</span><span class="delta flat" id="kInvMetaD"></span></div>
+        <div class="apoio" id="kInvMetaSub"></div>
+        <svg id="sparkMeta" viewBox="0 0 240 40" height="40" aria-hidden="true"></svg>
+      </div>
+      <div class="card kpi heroCard heroGoogle">
+        <span class="lbl">Investimento <span class="plat-tag">Google</span></span>
+        <div class="meta-line"><span class="val" id="kInvGoo">—</span><span class="delta flat" id="kInvGooD"></span></div>
+        <div class="apoio" id="kInvGooSub"></div>
+        <svg id="sparkGoo" viewBox="0 0 240 40" height="40" aria-hidden="true"></svg>
+      </div>
+      <div class="card kpi">
+        <span class="lbl">Total investido</span>
         <div class="meta-line"><span class="val" id="kInv">—</span><span class="delta flat" id="kInvD"></span></div>
         <div class="apoio split" id="kInvSplit"></div>
-        <svg id="sparkInv" viewBox="0 0 240 44" height="44" aria-hidden="true"></svg>
-      </div>
-      <div class="card kpi">
-        <span class="lbl">Leads de curso <span style="color:var(--meta)">· Meta</span></span>
-        <div class="meta-line"><span class="val" id="kLd">—</span><span class="delta" id="kLdD"></span></div>
-        <div class="apoio" id="kLdPM"></div>
-      </div>
-      <div class="card kpi">
-        <span class="lbl">Conversões <span style="color:var(--google)">· Google</span></span>
-        <div class="meta-line"><span class="val" id="kCv">—</span><span class="delta" id="kCvD"></span></div>
       </div>
       <div class="card kpi">
         <span class="lbl">CTR médio</span>
@@ -1089,28 +1109,42 @@
     var ctr = im ? cl / im * 100 : 0;
     var ctrAnt = imAnt ? clAnt / imAnt * 100 : 0;
 
-    $("kInv").textContent = brl(inv);
+    /* ---- um card por plataforma ----
+       O gasto sozinho nao diz nada; o resultado sozinho tambem nao. Juntos, na
+       mesma caixa, a conta aparece sem o cliente precisar fazer divisao. */
+    var spMetaAnt = soma(metaAnt, "sp"), spGooAnt = soma(gooAnt, "sp");
+    $("kInvMeta").textContent = brl0(spMeta);
+    setDelta($("kInvMetaD"), spMeta, spMetaAnt, true);
+    /* O custo por lead aqui usa a verba de curso (sem paciente modelo), senao
+       mistura duas captações diferentes e o número não descreve nada. */
+    $("kInvMetaSub").innerHTML = (ld
+      ? "<b>" + ld + "</b> leads de curso · <b>" + brl((spMeta - spPM) / ld) + "</b> cada"
+      : "sem lead de curso no período")
+      + (ldPM ? "<br>+ <b>" + ldPM + "</b> paciente modelo · " + brl(spPM / ldPM) + " cada" : "");
+    $("kInvGoo").textContent = brl0(spGoo);
+    setDelta($("kInvGooD"), spGoo, spGooAnt, true);
+    $("kInvGooSub").innerHTML = cv
+      ? "<b>" + num(cv) + "</b> conversões · <b>" + brl(spGoo / cv) + "</b> cada"
+      : "sem conversão no período";
+    spark($("sparkMeta"), porDia(D.meta, "sp", diasAtras(11), hoje()));
+    spark($("sparkGoo"), porDia(D.google, "sp", diasAtras(11), hoje()));
+
+    $("kInv").textContent = brl0(inv);
     setDelta($("kInvD"), inv, invAnt, true);
-    /* O numero grande continua sendo o total, que e' o que o cliente pergunta
-       primeiro. Mas sozinho ele nao diz onde o dinheiro foi — e as duas
-       plataformas aqui tem papeis diferentes. A quebra vai logo abaixo, com a
-       fatia de cada uma, para a leitura ser imediata sem precisar abrir grafico. */
+    /* Aqui vai so' a PROPORCAO, nunca os valores de novo: os dois cards ao lado
+       ja' mostram o dinheiro de cada plataforma. Repetir numero no mesmo bloco
+       de tela nao informa, so' ocupa espaco. O que falta nos outros dois e' a
+       fatia — e e' isso que entra. */
     $("kInvSplit").innerHTML = inv
-      ? '<span><i class="pt pMeta"></i>Meta <b>' + brl0(spMeta) + '</b>'
-        + ' <em>' + Math.round(spMeta / inv * 100) + '%</em></span>'
-        + '<span><i class="pt pGoogle"></i>Google <b>' + brl0(spGoo) + '</b>'
-        + ' <em>' + Math.round(spGoo / inv * 100) + '%</em></span>'
+      ? '<span><i class="pt pMeta"></i>Meta <b>'
+        + Math.round(spMeta / inv * 100) + '%</b></span>'
+        + '<span><i class="pt pGoogle"></i>Google <b>'
+        + Math.round(spGoo / inv * 100) + '%</b></span>'
       : "";
-    $("kLd").textContent = String(ld);
-    setDelta($("kLdD"), ld, ldAnt);
-    $("kLdPM").innerHTML = ldPM
-      ? "+ <b>" + ldPM + "</b> paciente modelo · " + brl(spPM / ldPM) + "/lead"
-      : "";
-    $("kCv").textContent = num(cv);
-    setDelta($("kCvD"), cv, cvAnt);
+    /* kLd, kCv e sparkInv sairam do HTML: leads e conversoes agora moram
+       dentro do card da plataforma que os produziu, junto com o gasto. */
     $("kCtr").textContent = pctBR(ctr);
     setDelta($("kCtrD"), ctr, ctrAnt);
-    spark($("sparkInv"), porDia(D.meta.concat(D.google), "sp", diasAtras(11), hoje()));
 
     lineChart($("plotInv"), [
       {name: "Meta", color: "var(--meta)", data: porDia(D.meta, "sp", j.de, j.ate)},
